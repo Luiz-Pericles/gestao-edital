@@ -1,7 +1,6 @@
-
 import { useState, FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Upload } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -29,6 +28,7 @@ const CriarEdital = () => {
   });
   const [termoReferencia, setTermoReferencia] = useState<File | null>(null);
   const [tabelaItens, setTabelaItens] = useState<File | null>(null);
+  const [isExcelValid, setIsExcelValid] = useState(false);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -52,35 +52,68 @@ const CriarEdital = () => {
     }
   };
 
-  const handleTabelaUpload = (file: File | null) => {
+  const handleTabelaUpload = (file: File | null, isValid: boolean = false) => {
     setTabelaItens(file);
-    if (file) {
+    setIsExcelValid(isValid);
+    if (file && isValid) {
       toast.success(`Arquivo carregado: ${file.name}`);
     }
   };
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    
+
     // Validate form
-    if (!formData.nome || !formData.numero || !formData.modalidade || 
-        !formData.data || !formData.objeto || !termoReferencia || !tabelaItens) {
+    if (!formData.nome || !formData.numero || !formData.modalidade ||
+      !formData.data || !formData.objeto || !termoReferencia || !tabelaItens) {
       toast.error("Por favor, preencha todos os campos e faça o upload dos arquivos necessários.");
       return;
     }
-    
+
+    // Validate Excel file
+    if (!isExcelValid) {
+      toast.error("A planilha Excel não está no formato correto. Por favor, verifique e tente novamente.");
+      return;
+    }
+
     setLoading(true);
-    
-    // Simulate processing
-    setTimeout(() => {
-      setLoading(false);
-      // Store form data in session storage to pass to next page
+
+    try {
+      // Store files and form data in session storage
       sessionStorage.setItem("editalFormData", JSON.stringify(formData));
-      sessionStorage.setItem("termoReferencia", termoReferencia?.name || "");
-      sessionStorage.setItem("tabelaItens", tabelaItens?.name || "");
-      
-      navigate("/identificar-tabelas");
-    }, 1500);
+
+      // Convert files to Base64 and store them
+      const termoReader = new FileReader();
+      const tabelaReader = new FileReader();
+
+      termoReader.onload = function () {
+        sessionStorage.setItem("termoReferencia", JSON.stringify({
+          name: termoReferencia?.name,
+          content: termoReader.result
+        }));
+      };
+
+      tabelaReader.onload = function () {
+        sessionStorage.setItem("tabelaItens", JSON.stringify({
+          name: tabelaItens?.name,
+          content: tabelaReader.result
+        }));
+
+        // Navigate after both files are stored
+        toast.success("Arquivos carregados com sucesso!");
+        navigate("/identificar-tabelas");
+      };
+
+      // Read the files
+      termoReader.readAsDataURL(termoReferencia as File);
+      tabelaReader.readAsDataURL(tabelaItens as File);
+
+    } catch (error) {
+      console.error("Erro:", error);
+      toast.error("Ocorreu um erro ao processar os arquivos. Tente novamente.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -88,9 +121,9 @@ const CriarEdital = () => {
       {/* Header */}
       <header className="bg-blue-800 text-white py-4 shadow-md">
         <div className="container mx-auto px-4 flex items-center">
-          <Button 
-            variant="ghost" 
-            className="text-white mr-4" 
+          <Button
+            variant="ghost"
+            className="text-white mr-4"
             onClick={() => navigate("/")}
           >
             <ArrowLeft className="w-5 h-5" />
@@ -116,7 +149,7 @@ const CriarEdital = () => {
                     required
                   />
                 </div>
-                
+
                 <div>
                   <Label htmlFor="numero">Número do processo</Label>
                   <Input
@@ -128,11 +161,11 @@ const CriarEdital = () => {
                     required
                   />
                 </div>
-                
+
                 <div>
                   <Label htmlFor="modalidade">Modalidade da licitação</Label>
-                  <Select 
-                    value={formData.modalidade} 
+                  <Select
+                    value={formData.modalidade}
                     onValueChange={handleSelectChange}
                     required
                   >
@@ -150,7 +183,7 @@ const CriarEdital = () => {
                     </SelectContent>
                   </Select>
                 </div>
-                
+
                 <div>
                   <Label htmlFor="data">Data de abertura</Label>
                   <Input
@@ -162,7 +195,7 @@ const CriarEdital = () => {
                     required
                   />
                 </div>
-                
+
                 <div>
                   <Label htmlFor="objeto">Objeto da contratação</Label>
                   <Textarea
@@ -175,40 +208,41 @@ const CriarEdital = () => {
                     required
                   />
                 </div>
-                
+
                 <div className="space-y-2">
                   <Label>Upload do Termo de Referência (.docx)</Label>
-                  <FileUpload 
+                  <FileUpload
                     acceptedTypes={".docx,.doc"}
                     onFileUpload={handleTermoUpload}
                     currentFile={termoReferencia}
                   />
                 </div>
-                
+
                 <div className="space-y-2">
                   <Label>Upload da Tabela de Itens (.xlsx)</Label>
-                  <FileUpload 
+                  <FileUpload
                     acceptedTypes={".xlsx,.xls"}
                     onFileUpload={handleTabelaUpload}
                     currentFile={tabelaItens}
+                    validateFile={true}
                   />
                 </div>
               </div>
-              
+
               <div className="pt-4">
-                <Button 
-                  type="submit" 
+                <Button
+                  type="submit"
                   className="w-full bg-blue-700 hover:bg-blue-800"
                   disabled={loading}
                 >
-                  {loading ? "Processando..." : "Próximo"}
+                  {loading ? <Loader2 className="animate-spin w-5 h-5 mr-2 inline-block" /> : "Próximo"}
                 </Button>
               </div>
             </form>
           </CardContent>
         </Card>
       </main>
-      
+
       {/* Footer */}
       <footer className="bg-gray-800 text-gray-300 py-3">
         <div className="container mx-auto px-4 text-center">

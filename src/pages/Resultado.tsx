@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, FileDown, CheckCircle, Home } from "lucide-react";
@@ -9,31 +8,59 @@ import { toast } from "sonner";
 const Resultado = () => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState<any>({});
+  const [documentoProcessado, setDocumentoProcessado] = useState<any>(null);
 
   useEffect(() => {
-    // Retrieve form data from session storage
+    // Retrieve data from session storage
     const storedFormData = sessionStorage.getItem("editalFormData");
-    
-    if (!storedFormData) {
+    const storedDocumento = sessionStorage.getItem("documentoProcessado");
+
+    if (!storedFormData || !storedDocumento) {
       toast.error("Dados não encontrados. O processo não foi concluído corretamente.");
       navigate("/criar-edital");
       return;
     }
-    
+
     setFormData(JSON.parse(storedFormData));
-    
-    // Show success toast
+    setDocumentoProcessado(JSON.parse(storedDocumento));
+
     toast.success("Edital gerado com sucesso!");
   }, [navigate]);
 
-  const handleDownload = (fileType: string) => {
-    // Simulate file download
-    toast.info(`Iniciando download: ${fileType}`);
-    
-    // In a real implementation, this would trigger an actual file download
-    setTimeout(() => {
-      toast.success(`Download de ${fileType} concluído!`);
-    }, 1500);
+  const handleDownload = () => {
+    if (!documentoProcessado) {
+      toast.error("Documento não encontrado");
+      return;
+    }
+
+    try {
+      // Converter Base64 para Blob
+      const content = atob(documentoProcessado.content.split(',')[1]);
+      const bytes = new Uint8Array(content.length);
+      for (let i = 0; i < content.length; i++) {
+        bytes[i] = content.charCodeAt(i);
+      }
+      const blob = new Blob([bytes], {
+        type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+      });
+
+      // Criar link de download
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = documentoProcessado.name;
+      document.body.appendChild(a);
+      a.click();
+
+      // Cleanup
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      toast.success("Download iniciado com sucesso!");
+    } catch (error) {
+      console.error("Erro ao fazer download:", error);
+      toast.error("Erro ao fazer download do documento");
+    }
   };
 
   return (
@@ -41,9 +68,9 @@ const Resultado = () => {
       {/* Header */}
       <header className="bg-blue-800 text-white py-4 shadow-md">
         <div className="container mx-auto px-4 flex items-center">
-          <Button 
-            variant="ghost" 
-            className="text-white mr-4" 
+          <Button
+            variant="ghost"
+            className="text-white mr-4"
             onClick={() => navigate("/identificar-tabelas")}
           >
             <ArrowLeft className="w-5 h-5" />
@@ -62,10 +89,10 @@ const Resultado = () => {
               </div>
               <h2 className="text-2xl font-bold text-green-600">Edital gerado com sucesso!</h2>
               <p className="text-gray-600 mt-2">
-                Os arquivos do edital foram processados e estão prontos para download
+                O documento foi processado e está pronto para download
               </p>
             </div>
-            
+
             <div className="bg-gray-50 border rounded-lg p-4 mb-6">
               <h3 className="font-medium text-gray-800 mb-2">Detalhes do Edital</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
@@ -91,64 +118,34 @@ const Resultado = () => {
                 </div>
               </div>
             </div>
-            
+
             <div className="space-y-3 mb-8">
-              <h3 className="font-medium text-gray-800">Arquivos para Download</h3>
-              
               <Button
                 variant="outline"
                 className="w-full justify-start h-auto py-3 px-4 border-gray-300"
-                onClick={() => handleDownload("Edital Final")}
+                onClick={handleDownload}
               >
                 <div className="flex items-center">
                   <FileDown className="h-5 w-5 text-blue-600 mr-3" />
                   <div className="text-left">
-                    <p className="font-medium">Edital Final</p>
-                    <p className="text-xs text-gray-500">Documento .docx</p>
-                  </div>
-                </div>
-              </Button>
-              
-              <Button
-                variant="outline"
-                className="w-full justify-start h-auto py-3 px-4 border-gray-300"
-                onClick={() => handleDownload("Termo de Referência Editado")}
-              >
-                <div className="flex items-center">
-                  <FileDown className="h-5 w-5 text-blue-600 mr-3" />
-                  <div className="text-left">
-                    <p className="font-medium">Termo de Referência Editado</p>
-                    <p className="text-xs text-gray-500">Documento .docx</p>
-                  </div>
-                </div>
-              </Button>
-              
-              <Button
-                variant="outline"
-                className="w-full justify-start h-auto py-3 px-4 border-gray-300"
-                onClick={() => handleDownload("Tabela de Itens Tratada")}
-              >
-                <div className="flex items-center">
-                  <FileDown className="h-5 w-5 text-blue-600 mr-3" />
-                  <div className="text-left">
-                    <p className="font-medium">Tabela de Itens Tratada</p>
-                    <p className="text-xs text-gray-500">Planilha .xlsx</p>
+                    <p className="font-medium">Baixar Documento Final</p>
+                    <p className="text-xs text-gray-500">Documento .docx com as tabelas substituídas</p>
                   </div>
                 </div>
               </Button>
             </div>
-            
-            <Button 
+
+            <Button
               className="w-full bg-blue-700 hover:bg-blue-800 text-lg h-12"
               onClick={() => navigate("/")}
             >
-              <Home className="mr-2 h-5 w-5" /> 
+              <Home className="mr-2 h-5 w-5" />
               Voltar ao Início
             </Button>
           </CardContent>
         </Card>
       </main>
-      
+
       {/* Footer */}
       <footer className="bg-gray-800 text-gray-300 py-3">
         <div className="container mx-auto px-4 text-center">
