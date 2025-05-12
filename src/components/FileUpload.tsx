@@ -2,6 +2,7 @@ import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Upload, X, FileText, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
+import { API_ENDPOINTS } from "@/config/api";
 
 interface FileUploadProps {
   acceptedTypes: string;
@@ -28,7 +29,7 @@ const FileUpload = ({
       const formData = new FormData();
       formData.append('tabela_itens', file);
 
-      const response = await fetch('http://localhost:8000/validar-excel/', {
+      const response = await fetch(API_ENDPOINTS.VALIDAR_EXCEL, {
         method: 'POST',
         body: formData
       });

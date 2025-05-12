@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { Separator } from "@/components/ui/separator";
+import { API_ENDPOINTS } from "@/config/api";
 
 interface TableInfo {
   id: number;
@@ -58,7 +59,7 @@ const IdentificarTabelas = () => {
       formData.append('termo_referencia', blob, termoRef.name);
 
       // Enviar para o backend identificar as tabelas
-      const response = await fetch('http://localhost:8000/identificar-tabelas/', {
+      const response = await fetch(API_ENDPOINTS.IDENTIFICAR_TABELAS, {
         method: 'POST',
         body: formData
       });
@@ -132,7 +133,7 @@ const IdentificarTabelas = () => {
       formData.append('selected_tables', JSON.stringify(selectedTableIds));
 
       // Enviar para processamento
-      const response = await fetch('http://localhost:8000/substituir-tabelas/', {
+      const response = await fetch(API_ENDPOINTS.SUBSTITUIR_TABELAS, {
         method: 'POST',
         body: formData
       });
